@@ -4,6 +4,7 @@ import type { Poll } from "@/app/types";
 
 import PollUI from "@/components/PollUI";
 import Balloon from "@/components/Balloon";
+import PollUISocketWrapper from "@/components/PollUI";
 
 export default async function PollPage({
   params,
@@ -33,7 +34,7 @@ export default async function PollPage({
     <>
       <div className="flex flex-col space-y-4">
         <h1 className="text-2xl font-bold">{poll.title}</h1>
-        <PollUI id={pollId} options={poll.options} initialVotes={poll.votes} />
+        <PollUISocketWrapper id={pollId} options={poll.options} initialVotes={poll.votes} />
       </div>
 
       <Balloon float />

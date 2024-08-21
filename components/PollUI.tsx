@@ -1,12 +1,11 @@
 "use client";
 
-import { PARTYKIT_HOST } from "@/app/env";
-import { Poll } from "@/app/types";
-import usePartySocket from "partysocket/react";
 import { useEffect, useState } from "react";
 import PollOptions from "./PollOptions";
+import {SocketProvider, useOnClose, useOnMessage, useOnOpen, useSocket} from "@/providers/socket";
+import {usePollMessage} from "@/hooks/poll";
 
-export default function PollUI({
+export default function PollUISocketWrapper({
   id,
   options,
   initialVotes,
@@ -15,23 +14,48 @@ export default function PollUI({
   options: string[];
   initialVotes?: number[];
 }) {
+  return <SocketProvider roomId={id}>
+    <PollUI id={id} options={options} initialVotes={initialVotes} />
+  </SocketProvider>
+}
+
+function PollUI({
+  id,
+  options,
+  initialVotes,
+}: {
+  id: string;
+  options: string[];
+  initialVotes?: number[];
+}) {
+  const {sendJSON} = useSocket()
   const [votes, setVotes] = useState<number[]>(initialVotes ?? []);
   const [vote, setVote] = useState<number | null>(null);
 
-  const socket = usePartySocket({
-    host: PARTYKIT_HOST,
-    room: id,
-    onMessage(event) {
-      const message = JSON.parse(event.data) as Poll;
-      if (message.votes) {
-        setVotes(message.votes);
-      }
-    },
-  });
+  useOnMessage<{ votes: number[]}>((message) => {
+    console.log('useOnMessage', message.votes)
+    setVotes(message.votes)
+  }, ['votes'])
+
+  usePollMessage('votes', (message) => {
+    console.log('usePollMessage', message.votes)
+  })
+
+  useOnClose((e) => {
+    console.log('useOnClose fired', e)
+  })
+
+  useOnOpen((e) => {
+    console.log('useOnOpen fired', e)
+  })
 
   const sendVote = (option: number) => {
     if (vote === null) {
-      socket.send(JSON.stringify({ type: "vote", option }));
+      // no need to JSON.stringify
+      sendJSON({ type: "vote", data: {
+          option
+        }
+      });
       setVote(option);
     }
   };

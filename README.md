@@ -1,25 +1,87 @@
-PartyKit is an open source platform for developing multiplayer, real-time applications.
+# PartyPoll /w React Context Provider
 
-This is a [PartyKit](https://partykit.io) project using [Next.js](https://nextjs.org/).
+This is built based on the completed [PartyKit PartyPoll example](https://github.com/partykit/partypoll/), and uses React Context Provider to received data
+by React hooks.
 
-- [Live Next.js site on Vercel](https://partypoll.vercel.app/)
-- [Step-by-step tutorial on PartyKit Docs](https://docs.partykit.io/tutorials/add-partykit-to-a-nextjs-app/)
-- [Talk about the app from 2023 Next.js Conf](https://youtu.be/SVD372XDFQQ?feature=shared)
+## Provider
 
-## Getting Started
+The [SocketProvider](./providers/socket.tsx) is what connects to the socket and handles the connection.
+Its job is to have a separation between components and the socket.  All interactions or changes are to be handled by it.
 
-First, run the development server:
+On top of that, the provider provides handler method(s):
 
-```bash
-npm install
-npx partykit dev
-npm run dev
+- `sendJSON` which will handle parsing JSON between React and the Websocket server.
+
+### Provider Hooks
+
+as well as React hooks to handle WebSocket events:
+
+- [useOnOpen](./providers/socket.tsx#L40) hook will fire once if the connection disconnects, then reconnects.
+- [useOnClose](./providers/socket.tsx#L90) hook will fire once if the connection disconnects.
+- [useOnMessage](./providers/socket.tsx#L129) hook can tap into certain message types. The idea is to be able to have separate
+  hooks.
+
+with `useOnMessage` instead of handling the message events with `onMessage` like so
+
+```tsx
+const socket = usePartySocket({
+  host: PARTYKIT_HOST,
+  room: id,
+  onMessage(event) {
+    const message = JSON.parse(event.data) as Poll;
+    if (message.votes) {
+      setVotes(message.votes);
+    }
+    
+    if (message.somethingElse) {
+      // do something else
+    }
+  },
+});
 ```
 
-This will start the PartyKit development server at port **1999**, and a Next.js development server at port **3000**.
+you would just handle it with hooks
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+```
+  useOnMessage<{ votes: number[]}>((message) => {
+    // fires when a vote
+    setVotes(message.votes)
+  }, ['votes'])
+  
+  useOnMessage((message) => {
+    // fires when somethingElse message type is sent
+  }, ['somethingElse'])
+```
 
-## Learn more
+The response from the server being changed to now have `data` and `type` to be specific what you're targeting.
 
-Read our [step-by-step tutorial on PartyKit Docs](https://docs.partykit.io/tutorials/add-partykit-to-a-nextjs-app/), including instructions to deploy your application to PartyKit and Vercel. You can also follow [a video tutorial](https://youtu.be/SVD372XDFQQ?feature=shared)
+This allows you to have separate hooks if wanted, breaking up when each one will fire.
+
+## Hooks
+
+Hooks _could_ also be built on top of `useOnMessage` to provide an abstraction of return typedefs
+with function overloading. This could help provide guidance if hook access
+is necessary in many components with intellisense. For demo purposes, this has been done with
+[usePollMessage](./hooks/poll.ts).
+
+## Potentially other providers
+
+Providers _could_ also be built on top of `SocketProvider` as a sort of middleware to further
+handle the specific message types and have its own logic.
+
+## Websocket party setup
+
+This demo separates the party server logic into separate files.
+
+### Pros
+
+- Separates the code into modules
+  - making it easier to read, easier to add, update and remove entire pieces. 
+
+### Cons
+
+- Higher chance of overlapping message type conflicts. It has to be handled a bit more carefully.
+- Order matters, this could also be a pro as you can easily change the order, and it's not really different compared to having it in one file.
+- If you forget to call the `super.*` methods it ends up not continuing through the chain. Easier to make a mistake.
+
+
