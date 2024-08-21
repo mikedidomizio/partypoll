@@ -42,7 +42,7 @@ const socket = usePartySocket({
 
 you would just handle it with hooks
 
-```
+```tsx
   useOnMessage<{ votes: number[]}>((message) => {
     // fires when a vote
     setVotes(message.votes)
